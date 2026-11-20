@@ -52,3 +52,28 @@ kubectl get pods -n kube-system -o wide
 ![Control Plane Components](./screenshots/task1-control-plane.png)
 
 
+---
+
+## Task 2: ConfigMap (`cha-config`)
+
+A ConfigMap named `cha-config` was created in the `cha-express` namespace using [`manifests/02-configmap.yaml`](./manifests/02-configmap.yaml). It stores both application configuration key-value pairs and the static `index.html` storefront page for Rahim Mama's Cha.
+
+### Configuration Keys Included
+
+| Key | Value / Purpose |
+|---|---|
+| `SHOP_NAME` | `Rahim Mama's Cha` |
+| `CITY` | `Dhaka` |
+| `THEME_COLOR` | `#8B4513` |
+| `OPENING_HOURS` | `7:00 AM - 11:00 PM` |
+| `index.html` | Responsive HTML/CSS menu displaying 5 tea items (*Malai Cha*, *Masala Dudh Cha*, *Lebu Rong Cha*, *Ada Cha*, and *Tandoori Matka Cha*) with prices in BDT (`৳`). |
+
+### Commands Used
+
+```bash
+kubectl apply -f manifests/02-configmap.yaml
+kubectl get configmap cha-config -n cha-express
+kubectl describe configmap cha-config -n cha-express
+```
+
+![ConfigMap Verification](./screenshots/task2-configmap.png)

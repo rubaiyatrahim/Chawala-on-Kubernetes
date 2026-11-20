@@ -1,0 +1,128 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: cha-config
+  namespace: cha-express
+data:
+  SHOP_NAME: "Rahim Mama's Cha"
+  CITY: "Dhaka"
+  THEME_COLOR: "#8B4513"
+  OPENING_HOURS: "7:00 AM - 11:00 PM"
+  index.html: |
+    <!DOCTYPE html>
+    <html lang="en">
+    <head>
+      <meta charset="UTF-8" />
+      <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+      <title>Rahim Mama's Cha - Dhaka</title>
+      <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body {
+          font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+          background: #fdf6ec;
+          color: #3b2314;
+          min-height: 100vh;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          padding: 24px;
+        }
+        .card {
+          width: 100%;
+          max-width: 560px;
+          background: #ffffff;
+          border-radius: 16px;
+          overflow: hidden;
+          box-shadow: 0 10px 30px rgba(59, 35, 20, 0.12);
+        }
+        header {
+          background: #8B4513;
+          color: #fff8f0;
+          padding: 28px 24px;
+          text-align: center;
+        }
+        header h1 { font-size: 1.9rem; margin-bottom: 6px; }
+        .meta { font-size: 0.92rem; opacity: 0.9; }
+        .menu { padding: 24px; }
+        .menu h2 {
+          font-size: 1.15rem;
+          text-transform: uppercase;
+          letter-spacing: 0.08em;
+          color: #8B4513;
+          margin-bottom: 14px;
+        }
+        .item {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          padding: 13px 0;
+          border-bottom: 1px dashed #e2cbb5;
+        }
+        .item:last-child { border-bottom: none; }
+        .item-name { font-weight: 600; font-size: 1.05rem; }
+        .item-desc { font-size: 0.84rem; color: #7a5c47; margin-top: 2px; }
+        .price {
+          font-weight: 700;
+          font-size: 1.08rem;
+          color: #8B4513;
+          background: #fdf2e6;
+          padding: 4px 12px;
+          border-radius: 999px;
+        }
+        footer {
+          text-align: center;
+          padding: 14px;
+          font-size: 0.82rem;
+          background: #faf0e4;
+          color: #6b4c35;
+        }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <header>
+          <h1>☕ Rahim Mama's Cha</h1>
+          <div class="meta">Dhaka • Open Daily: 7:00 AM - 11:00 PM</div>
+        </header>
+        <section class="menu">
+          <h2>Freshly Brewed Menu</h2>
+          <div class="item">
+            <div>
+              <div class="item-name">Malai Cha</div>
+              <div class="item-desc">Rich condensed milk tea topped with thick malai</div>
+            </div>
+            <span class="price">৳30</span>
+          </div>
+          <div class="item">
+            <div>
+              <div class="item-name">Masala Dudh Cha</div>
+              <div class="item-desc">Classic Dhaka milk tea infused with cardamom &amp; clove</div>
+            </div>
+            <span class="price">৳15</span>
+          </div>
+          <div class="item">
+            <div>
+              <div class="item-name">Lebu Rong Cha</div>
+              <div class="item-desc">Zesty black tea with fresh lime juice &amp; black salt</div>
+            </div>
+            <span class="price">৳10</span>
+          </div>
+          <div class="item">
+            <div>
+              <div class="item-name">Ada Cha</div>
+              <div class="item-desc">Strong ginger-brewed red tea for rainy afternoons</div>
+            </div>
+            <span class="price">৳12</span>
+          </div>
+          <div class="item">
+            <div>
+              <div class="item-name">Tandoori Matka Cha</div>
+              <div class="item-desc">Smoky milk tea finished in a red-hot clay cup</div>
+            </div>
+            <span class="price">৳50</span>
+          </div>
+        </section>
+        <footer>Powered by Kubernetes • cha-express namespace</footer>
+      </div>
+    </body>
+    </html>
