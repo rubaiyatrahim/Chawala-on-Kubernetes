@@ -149,3 +149,19 @@ kubectl exec -n cha-express deploy/cha-deployment -- env | grep -E "^(SHOP_NAME|
 ```
 
 ![Environment Variables Proof](./screenshots/task4-env-vars.png)
+---
+
+## Task 5: GitHub Copilot
+
+### 1. Prompt Given to GitHub Copilot
+Used GitHub Copilot Chat inside VS Code with the following prompt:
+
+> *"Create a Kubernetes Deployment and NodePort Service manifest in namespace `cha-express` for `nginx:1.25-alpine` with 3 replicas. Pass all keys from ConfigMap `cha-config` as environment variables, pass only `ADMIN_PASSWORD` from Secret `cha-secret` as an environment variable, serve `index.html` from `cha-config` as Nginx's default page, set CPU and memory requests and limits, and expose the app on NodePort `30080`."*
+
+![GitHub Copilot Manifest Generation](./screenshots/task5-copilot.png)
+
+### 2. What I Had to Change in Copilot's Output (and Why)
+
+| Area | What Copilot Generated | Change Made & Why |
+|---|---|---|
+| **ConfigMap Volume Mount** | Used `subPath: index.html` under `volumeMounts`. | Removed `subPath` and mounted via `configMap.items` onto `/usr/share/nginx/html`. Files mounted with `subPath` do **not** receive automatic ConfigMap updates from `kubelet`, which would break live HTML updates in the Bonus task. |
