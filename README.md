@@ -260,3 +260,36 @@ kubectl run curl-debug --rm -i --restart=Never --image=curlimages/curl -n cha-ex
 ```
 
 ![Fixed Deployment and Working Service](./screenshots/task7-debug-fixed.png)
+---
+
+## Bonus: Live ConfigMap Update Behavior
+
+Updated both `THEME_COLOR` (`#8B4513` → `#2E7D32`) and `index.html` (updated heading to `Freshly Brewed Menu (Updated Live!)` and header theme to green) in [`manifests/02-configmap.yaml`](./manifests/02-configmap.yaml), then re-applied it to the cluster without restarting the pods:
+
+```bash
+kubectl apply -f manifests/02-configmap.yaml
+```
+
+### Observation (After ~65 Seconds, Before Restart)
+
+| ConfigMap Item | Injection Method | Updated in Running Pods? | Observed Value |
+|---|---|---|---|
+| `index.html` | Volume mount (`/usr/share/nginx/html`, no `subPath`) | **Yes (automatically)** | `Freshly Brewed Menu (Updated Live!)` |
+| `THEME_COLOR` | Environment variable (`envFrom.configMapRef`) | **No (remained stale)** | `#8B4513` (old value) |
+
+![Bonus Observation Before Restart](./screenshots/bonus-before-restart.png)
+
+### Question: Why do the two behave differently? What must you do to apply all changes?
+
+* **Why `index.html` updated automatically:** When a ConfigMap is mounted as a volume (without using `subPath`), `kubelet` periodically syncs the volume from the API server (roughly every 60 seconds) and performs an atomic symlink swap on the container's filesystem. Nginx reads the updated file directly from disk on the next HTTP request. *(Note: if `subPath` had been used, `kubelet` would not auto-update the file.)*
+* **Why `THEME_COLOR` did not update:** Environment variables are injected once at container startup and stored inside the running process's memory space. Neither Linux nor Kubernetes can mutate environment variables of an already-running process.
+* **How to apply all changes:** Trigger a zero-downtime rolling restart of the Deployment so Kubernetes creates new pods with the updated environment variables:
+
+```bash
+kubectl rollout restart deployment/cha-deployment -n cha-express
+kubectl rollout status deployment/cha-deployment -n cha-express
+kubectl exec -n cha-express deploy/cha-deployment -- printenv THEME_COLOR
+# Output: #2E7D32
+```
+
+![Bonus Verification After Rollout Restart](./screenshots/bonus-after-restart.png)
