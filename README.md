@@ -214,3 +214,49 @@ kubectl rollout history deployment/cha-deployment -n cha-express
 * **RollingUpdate Strategy:** By default, Kubernetes Deployments use the `RollingUpdate` strategy with `maxSurge: 25%` and `maxUnavailable: 25%`. With 3 replicas, Kubernetes rounds up `maxSurge` to 1—meaning it creates 1 new pod (4 total temporarily), waits until that new pod becomes `Ready`, and only then terminates 1 old pod. This repeats one pod at a time until all 3 replicas run `nginx:1.27-alpine`.
 * **Service Endpoint Routing:** The `cha-service` NodePort Service only sends traffic to pods whose status is `Ready`. Because at least 2–3 healthy pods remained `Ready` throughout every step of the rollout, user requests never hit a terminating or unready container.
 * **Built-in Safety on Bad Releases:** When `nginx:9.99-broken` was deployed, the new pod stayed in `ImagePullBackOff` and never reached `Ready`. Because the new replica was unhealthy, the Deployment controller refused to terminate the existing 3 healthy pods, keeping Rahim Mama's menu online until `kubectl rollout undo` cleaned up the failed ReplicaSet.
+---
+
+## Task 7: Debug Challenge — "The Shop Is Closed!"
+
+Applied the broken manifest to the `cha-express` namespace, diagnosed all 4 bugs using `kubectl get`, `kubectl describe`, `EndpointSlice` inspection, and in-cluster `curl` tests, and saved the working manifest in [`manifests/06-cha-broken-fixed.yaml`](./manifests/06-cha-broken-fixed.yaml).
+
+### Broken State Observation
+![Broken Deployment and Empty Endpoints](./screenshots/task7-debug-broken.png)
+
+### Bug Breakdown
+
+#### Bug 1: Invalid Container Image Tag
+* **Symptom Observed:** Both `cha-broken` pods stayed in `0/1` with status `ErrImagePull` / `ImagePullBackOff`.
+* **How It Was Identified:** Ran `kubectl get pods -n cha-express -l app=cha-broken` and `kubectl describe pod`, where the Events log reported a failed image pull (`manifest for nginx:1.27-alpinee not found`).
+* **Root Cause:** Typo in the container image tag — `nginx:1.27-alpinee` has an extra `e`.
+* **How It Was Fixed:** Corrected the image field to `nginx:1.27-alpine`.
+
+#### Bug 2: Misspelled ConfigMap Reference
+* **Symptom Observed:** After fixing the image tag, pods failed to start and stayed in `CreateContainerConfigError`.
+* **How It Was Identified:** Ran `kubectl describe pod -n cha-express -l app=cha-broken`; the Events section showed `Error: configmap "cha-confg" not found`.
+* **Root Cause:** Typo in `envFrom[].configMapRef.name` — `cha-confg` is missing the letter `i` (the actual ConfigMap is named `cha-config`).
+* **How It Was Fixed:** Corrected `configMapRef.name` to `cha-config`.
+
+#### Bug 3: Service Selector Label Mismatch
+* **Symptom Observed:** Even with pods running, requests to `cha-broken-svc` timed out / could not reach any backend pod.
+* **How It Was Identified:** Ran `kubectl get endpointslice -n cha-express -l kubernetes.io/service-name=cha-broken-svc` and `kubectl describe svc cha-broken-svc -n cha-express`, which showed no backing pod IPs (`Endpoints: <none>`).
+* **Root Cause:** Typo in the Service selector — `app: cha-brokn` does not match the pod template label `app: cha-broken`.
+* **How It Was Fixed:** Updated `spec.selector.app` in `cha-broken-svc` to `cha-broken`.
+
+#### Bug 4: Incorrect Service `targetPort`
+* **Symptom Observed:** Requests to `http://cha-broken-svc:80` failed with `Connection refused`.
+* **How It Was Identified:** Inspected `kubectl describe svc cha-broken-svc -n cha-express` and `EndpointSlice`, which showed traffic forwarding to `<pod-ip>:8080`, whereas the default `nginx:1.27-alpine` container listens on port `80`.
+* **Root Cause:** `ports[].targetPort` was set to `8080` instead of `80`.
+* **How It Was Fixed:** Changed `targetPort` to `80`.
+
+### Final Verification After Fixes
+
+```bash
+kubectl apply -f manifests/06-cha-broken-fixed.yaml
+kubectl get pods -n cha-express -l app=cha-broken
+kubectl get endpointslice -n cha-express -l kubernetes.io/service-name=cha-broken-svc
+kubectl run curl-debug --rm -i --restart=Never --image=curlimages/curl -n cha-express -- curl -sI http://cha-broken-svc
+# Output: HTTP/1.1 200 OK
+```
+
+![Fixed Deployment and Working Service](./screenshots/task7-debug-fixed.png)
