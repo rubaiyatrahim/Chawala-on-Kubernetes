@@ -114,3 +114,38 @@ kubectl get secret cha-secret -n cha-express -o jsonpath='{.data.PAYMENT_API_KEY
 ```
 
 ![Secret Creation and Base64 Proof](./screenshots/task3-secret-proof.png)
+---
+
+## Task 4: Deployment & Service
+
+### 1. Deployment (`cha-deployment`)
+Created [`manifests/04-deployment.yaml`](./manifests/04-deployment.yaml) in the `cha-express` namespace with the following configuration:
+
+* **Image & Replicas:** `nginx:1.25-alpine` with `3` replicas.
+* **ConfigMap Environment Variables:** Injected all key-value pairs from `cha-config` via `envFrom.configMapRef`.
+* **Selective Secret Injection:** Injected **only** `ADMIN_PASSWORD` from `cha-secret` via `env[].valueFrom.secretKeyRef` (keeping `PAYMENT_API_KEY` out of the container environment).
+* **Custom HTML Page:** Mounted `index.html` from `cha-config` onto `/usr/share/nginx/html` using `volumes[].configMap.items` (without `subPath`, allowing live volume updates).
+* **Resource Management:** Requests (`100m` CPU, `64Mi` memory) and Limits (`250m` CPU, `128Mi` memory).
+
+### 2. NodePort Service (`cha-service`)
+Created [`manifests/05-service.yaml`](./manifests/05-service.yaml) exposing port `80` externally on NodePort `30080`.
+
+```bash
+kubectl apply -f manifests/04-deployment.yaml
+kubectl apply -f manifests/05-service.yaml
+kubectl get deploy,pods,svc -n cha-express
+```
+
+### 3. Browser Verification
+Accessed the live menu at `http://<minikube-ip>:30080`:
+
+![Rahim Mama's Cha Menu in Browser](./screenshots/task4-browser-menu.png)
+
+### 4. Container Environment Variables Proof
+Verified inside a running pod that all `cha-config` keys and `ADMIN_PASSWORD` are present, while `PAYMENT_API_KEY` is excluded:
+
+```bash
+kubectl exec -n cha-express deploy/cha-deployment -- env | grep -E "^(SHOP_NAME|CITY|THEME_COLOR|OPENING_HOURS|ADMIN_PASSWORD|PAYMENT_API_KEY)=" | sort
+```
+
+![Environment Variables Proof](./screenshots/task4-env-vars.png)
