@@ -77,3 +77,40 @@ kubectl describe configmap cha-config -n cha-express
 ```
 
 ![ConfigMap Verification](./screenshots/task2-configmap.png)
+---
+
+## Task 3: Secret (`cha-secret`)
+
+An `Opaque` Secret named `cha-secret` was created in the `cha-express` namespace using [`manifests/03-secret.yaml`](./manifests/03-secret.yaml) with dummy values for `ADMIN_PASSWORD` and `PAYMENT_API_KEY` (no real credentials are committed to this repository).
+
+```bash
+kubectl apply -f manifests/03-secret.yaml
+kubectl get secret cha-secret -n cha-express
+```
+
+### Question: Are Kubernetes Secrets encrypted?
+
+**No.** By default, Kubernetes Secrets are only **Base64-encoded**, not encrypted.
+
+* Base64 is a reversible encoding format designed to safely represent binary or special-character data in YAML/JSON—it provides **zero cryptographic security**.
+* Anyone with RBAC permission to `get` Secrets in the namespace (or direct read access to `etcd`) can decode the values back into plaintext instantly without any decryption key.
+* To actually protect Secrets at rest in production, cluster administrators must explicitly configure an `EncryptionConfiguration` on `kube-apiserver` (for `etcd` encryption at rest), enforce strict RBAC, and/or use external secret managers (such as Sealed Secrets, External Secrets Operator, or HashiCorp Vault).
+
+### Proof
+
+Retrieving the stored values from Kubernetes and decoding them with `base64 --decode` reveals the original plaintext immediately:
+
+```bash
+# 1. Inspect the raw stored values in Kubernetes (Base64-encoded)
+kubectl get secret cha-secret -n cha-express -o jsonpath='{.data}' && echo ""
+# Output: {"ADMIN_PASSWORD":"ZHVtbXktbWFtYS1wYXNzLTIwMjY=","PAYMENT_API_KEY":"ZHVtbXktYmthc2gta2V5LTk5OTk="}
+
+# 2. Decode both values back to plaintext without any key
+kubectl get secret cha-secret -n cha-express -o jsonpath='{.data.ADMIN_PASSWORD}' | base64 --decode && echo ""
+# Output: dummy-mama-pass-2026
+
+kubectl get secret cha-secret -n cha-express -o jsonpath='{.data.PAYMENT_API_KEY}' | base64 --decode && echo ""
+# Output: dummy-bkash-key-9999
+```
+
+![Secret Creation and Base64 Proof](./screenshots/task3-secret-proof.png)
