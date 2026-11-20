@@ -165,3 +165,52 @@ Used GitHub Copilot Chat inside VS Code with the following prompt:
 | Area | What Copilot Generated | Change Made & Why |
 |---|---|---|
 | **ConfigMap Volume Mount** | Used `subPath: index.html` under `volumeMounts`. | Removed `subPath` and mounted via `configMap.items` onto `/usr/share/nginx/html`. Files mounted with `subPath` do **not** receive automatic ConfigMap updates from `kubelet`, which would break live HTML updates in the Bonus task. |
+---
+
+## Task 6: Rolling Update & Rollback
+
+### 1. Rolling Update to `nginx:1.27-alpine`
+Updated the `cha-deployment` container image from `nginx:1.25-alpine` to `nginx:1.27-alpine`, annotated the change reason, and monitored the rollout in progress:
+
+```bash
+kubectl set image deployment/cha-deployment nginx=nginx:1.27-alpine -n cha-express
+kubectl annotate deployment/cha-deployment -n cha-express \
+  kubernetes.io/change-cause="Upgrade nginx image to 1.27-alpine" --overwrite
+kubectl rollout status deployment/cha-deployment -n cha-express
+```
+
+![Rolling Update in Progress](./screenshots/task6-rolling-update.png)
+
+### 2. Deploying an Invalid Image Tag
+Tested a failed release by deploying `nginx:9.99-broken`:
+
+```bash
+kubectl set image deployment/cha-deployment nginx=nginx:9.99-broken -n cha-express
+kubectl annotate deployment/cha-deployment -n cha-express \
+  kubernetes.io/change-cause="Broken release with invalid image tag nginx:9.99-broken" --overwrite
+kubectl get pods -n cha-express
+curl -I "http://$(minikube ip):30080"
+```
+
+The new pod entered `ImagePullBackOff`, while the 3 healthy `nginx:1.27-alpine` pods stayed `Running` and continued serving `HTTP/1.1 200 OK`.
+
+![Broken Deployment Protection](./screenshots/task6-broken-deploy.png)
+
+### 3. Rollback & Rollout History
+Restored the previous working version (`nginx:1.27-alpine`) and inspected the full rollout history with recorded `CHANGE-CAUSE` annotations:
+
+```bash
+kubectl rollout undo deployment/cha-deployment -n cha-express
+kubectl rollout status deployment/cha-deployment -n cha-express
+kubectl rollout history deployment/cha-deployment -n cha-express
+```
+
+![Rollback and Rollout History](./screenshots/task6-rollback-history.png)
+
+### Question: Did the website go down during the update? Explain why or why not.
+
+**No, the website did not go down during either the valid update or the broken image deployment.**
+
+* **RollingUpdate Strategy:** By default, Kubernetes Deployments use the `RollingUpdate` strategy with `maxSurge: 25%` and `maxUnavailable: 25%`. With 3 replicas, Kubernetes rounds up `maxSurge` to 1—meaning it creates 1 new pod (4 total temporarily), waits until that new pod becomes `Ready`, and only then terminates 1 old pod. This repeats one pod at a time until all 3 replicas run `nginx:1.27-alpine`.
+* **Service Endpoint Routing:** The `cha-service` NodePort Service only sends traffic to pods whose status is `Ready`. Because at least 2–3 healthy pods remained `Ready` throughout every step of the rollout, user requests never hit a terminating or unready container.
+* **Built-in Safety on Bad Releases:** When `nginx:9.99-broken` was deployed, the new pod stayed in `ImagePullBackOff` and never reached `Ready`. Because the new replica was unhealthy, the Deployment controller refused to terminate the existing 3 healthy pods, keeping Rahim Mama's menu online until `kubectl rollout undo` cleaned up the failed ReplicaSet.
